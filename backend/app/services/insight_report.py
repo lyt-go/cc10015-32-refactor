@@ -1,10 +1,10 @@
-"""洞察报告 分析看板服务：汇总指标、运行分析并生成模拟结果。"""
+"""洞察报告业务规则：报告读取与关键发现核对都走留存矩阵的共用路径。"""
 from __future__ import annotations
 
-import random
 from typing import Any
 
-from app.store import store
+from app.services.analysis_board import AnalysisBoardService
+from app.services import retention
 
 MODULE = "insight_report"
 REQUIRED_FIELDS = ["报告编号", "分析主题", "数据来源"]
@@ -13,30 +13,26 @@ ACTION_RULES = {"开始生成": "生成中", "确认完成": "已完成", "归�
 NEGATIVE_ACTIONS = []
 
 
-class InsightReportService:
+class InsightReportService(AnalysisBoardService):
+    """洞察报告只读留存矩阵，不再自己维护周期窗口和指标口径。"""
+
+    MODULE = MODULE
+
     def list_results(self) -> list[dict[str, Any]]:
-        rows = store.rows(MODULE)
-        results: list[dict] = []
-        for row in rows:
-            d = dict(row)
-            d["指标值"] = round(random.uniform(0.65, 0.98), 3)
-            d["对比基准"] = round(random.uniform(0.60, 0.92), 3)
-            d["差异"] = round(d["指标值"] - d["对比基准"], 3)
-            results.append(d)
-        return results
+        return self.workbench_rows()
 
-    def run_analysis(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        count = int(params.get("样本范围", params.get("并行数量", "6")))
-        results: list[dict] = []
-        for i in range(count):
-            results.append({
-                "id": i + 1,
-                "分组": f"分组{(i%3)+1}",
-                "指标值": round(random.uniform(0.62, 1.02), 3),
-                "对比基准": round(random.uniform(0.58, 0.95), 3),
-                "差异": round(random.uniform(-0.2, 0.3), 3),
-            })
-        return results
+    def workbench_rows(self, version: str = "V032") -> list[dict[str, Any]]:
+        return retention.insight_workbench(version)
 
-    def get_entry(self, entry_id: int) -> dict[str, Any] | None:
-        return store.find(MODULE, entry_id)
+    def get_entry(self, entry_id: int, version: str = "V032") -> dict[str, Any] | None:
+        return retention.insight_detail(entry_id, version)
+
+    def conclusions(self) -> list[dict[str, Any]]:
+        """洞察结论数据表：报告样例核对后的结论。"""
+        return retention.conclusion_rows()
+
+    def conclusion_for(self, report_code: str) -> dict[str, Any] | None:
+        return retention.conclusion_for_report(report_code)
+
+    def verify(self) -> dict[str, Any]:
+        return retention.verify_insight_samples()

@@ -617,3 +617,42 @@ test('概览汇总', async ({ page }) => {
   await expect(page.locator('.stat-value').nth(1)).toBeVisible()
   // 验证概览页加载正常即可，不硬编码精确计数（取决于各模块 E2E 登记成功数）
 })
+
+test('留存矩阵与洞察结论：同源数据、V032 留档与历史核对', async ({ page }) => {
+  test.setTimeout(300_000)
+  const browserErrors: string[] = []
+  page.on('pageerror', e => browserErrors.push(e.message))
+  page.on('response', r => { if (r.url().includes('/api/') && r.status() >= 400) browserErrors.push(`${r.status()} ${r.url()}`) })
+
+  await page.goto('/cohort_track')
+  await expect(page.getByTestId('matrix-table')).toBeVisible()
+  await expect(page.getByTestId('matrix-row-COHO-0001')).toBeVisible()
+  const firstRowHistory = await page.getByTestId('matrix-row-COHO-0001').locator('td').nth(5).innerText()
+
+  await page.getByTestId('matrix-history-check').click()
+  await expect(page.getByTestId('history-check-result')).toContainText('历史核对：通过')
+
+  // 查看详情后返回工作台，历史周期列必须保持一致。
+  await page.getByTestId('matrix-row-COHO-0001').getByRole('button', { name: '查看详情' }).click()
+  await expect(page.getByTestId('cohort-detail')).toBeVisible()
+  const detailHistory = await page.getByTestId('cohort-detail').locator('tbody tr').nth(0).locator('td').nth(1).innerText()
+  expect(detailHistory).toBe(firstRowHistory)
+
+  await page.getByTestId('matrix-version').selectOption('V032')
+  await expect(page.getByTestId('matrix-row-COHO-0001')).toBeVisible()
+
+  // 未清残留存在时，替换应被阻断并回滚。
+  await page.getByTestId('matrix-policy').selectOption('recompute')
+  await page.getByTestId('matrix-replace').click()
+  await expect(page.getByTestId('matrix-message')).toContainText('回滚')
+  await expect(page.getByTestId('v032-archive')).toContainText('rolled_back')
+
+  // 切到洞察报告：结论表读取同一份矩阵留存率。
+  await page.goto('/insight_report')
+  await expect(page.getByTestId('conclusion-table')).toBeVisible()
+  await expect(page.getByTestId('conclusion-INSI-0001')).toContainText('%')
+  await page.getByTestId('verify-samples').click()
+  await expect(page.getByTestId('verify-result')).toContainText('样例核对：通过')
+
+  expect(browserErrors).toEqual([])
+})

@@ -75,5 +75,43 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 留存矩阵与洞察结论
+
+同期群追踪与洞察报告共用一条留存计算路径，周期窗口与指标口径只维护一处：
+
+| 位置 | 作用 |
+| --- | --- |
+| `app/retention_core.py` | 纯计算：成员边界、周期窗口、`RET-V031` / `RET-V032` 两种周期口径 |
+| `app/retention_definitions.py` | 同期群定义、口径版本、残留与 V032 留档的原始数据 |
+| `app/retention_seed.py` | 由计算结果生成矩阵、版本表、留档与洞察结论示例数据 |
+| `app/services/retention.py` | 共用读取/重算路径、矩阵替换事务、历史核对 |
+| `app/services/analysis_board.py` | 分析看板类模块共用的列表/运行/详情/摘要实现 |
+
+数据表：
+
+- `retention_matrix`：留存矩阵数据表，历史周期口径 `RET-V031` 的历史列。
+- `retention_matrix_v032`：新周期口径的独立版本表，不覆盖历史列。
+- `retention_matrix_snapshot`：整列重算前的历史列快照。
+- `retention_v032_archive`：V032 留档，记录每次矩阵替换/清理/恢复的结果与指纹。
+- `retention_history`：历史留档，保存原成员边界与历史周期列，重跑时只认这份。
+- `insight_conclusion`：洞察结论数据表，报告关键发现的周期留存率来自矩阵。
+
+接口：
+
+- `GET /api/retention_matrix?version=V031|V032`：按版本读取矩阵。
+- `GET /api/retention_matrix/history-check`：核对矩阵是否复现历史结果。
+- `GET /api/retention_matrix/archive`、`/archive-check`：V032 留档与按留档核对。
+- `POST /api/retention_matrix/replace`：`策略=historical_first|recompute` 执行矩阵替换。
+- `POST /api/retention_matrix/clean-residue`、`/restore`：清理未清残留 / 用快照恢复历史列。
+- `GET /api/insight_report/conclusions`、`/verify`：洞察结论表与报告样例核对。
+
+两条口径冲突的处理方式（V032）：
+
+- 历史周期口径优先：矩阵保留旧列结果，行上附 `新口径差异`（`历史口径` / `新口径` / `差异`）。
+- 按新指标口径整列重算：矩阵替换为当前口径，替换前先写 `retention_matrix_snapshot`。
+
+矩阵替换在一个事务里完成；只要检测到越界周期列（例如 `第99期`），整笔回滚并写入留档，
+矩阵与版本表保持原样。重跑历史同期群沿用 `retention_history` 里的成员边界，不读取当前群组定义。
+
 领域：数据工程
 子方向：数据分析与数据应用

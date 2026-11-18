@@ -1,10 +1,10 @@
-"""同期群追踪 分析看板服务：汇总指标、运行分析并生成模拟结果。"""
+"""同期群追踪业务规则：同一份周期窗口与指标口径，供工作台、详情页和洞察报告复用。"""
 from __future__ import annotations
 
-import random
 from typing import Any
 
-from app.store import store
+from app.services.analysis_board import AnalysisBoardService
+from app.services import retention
 
 MODULE = "cohort_track"
 REQUIRED_FIELDS = ["群组编号", "群组名称", "首次行为"]
@@ -13,30 +13,24 @@ ACTION_RULES = {"提交校验": "待校验", "标记生效": "已生效", "停�
 NEGATIVE_ACTIONS = ["停用群组"]
 
 
-class CohortTrackService:
+class CohortTrackService(AnalysisBoardService):
+    """同期群定义与留存矩阵的读取入口。
+
+    周期窗口、成员边界、留存口径全部走 ``app.services.retention``，
+    页面只做投影，不再各自维护一套计算。
+    """
+
+    MODULE = MODULE
+
     def list_results(self) -> list[dict[str, Any]]:
-        rows = store.rows(MODULE)
-        results: list[dict] = []
-        for row in rows:
-            d = dict(row)
-            d["指标值"] = round(random.uniform(0.65, 0.98), 3)
-            d["对比基准"] = round(random.uniform(0.60, 0.92), 3)
-            d["差异"] = round(d["指标值"] - d["对比基准"], 3)
-            results.append(d)
-        return results
+        """工作台列表：与详情页共用同一份投影，避免两边口径分叉。"""
+        return self.workbench_rows()
 
-    def run_analysis(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        count = int(params.get("样本范围", params.get("并行数量", "6")))
-        results: list[dict] = []
-        for i in range(count):
-            results.append({
-                "id": i + 1,
-                "分组": f"分组{(i%3)+1}",
-                "指标值": round(random.uniform(0.62, 1.02), 3),
-                "对比基准": round(random.uniform(0.58, 0.95), 3),
-                "差异": round(random.uniform(-0.2, 0.3), 3),
-            })
-        return results
+    def workbench_rows(self, version: str = "V031") -> list[dict[str, Any]]:
+        return retention.cohort_workbench(version)
 
-    def get_entry(self, entry_id: int) -> dict[str, Any] | None:
-        return store.find(MODULE, entry_id)
+    def get_entry(self, entry_id: int, version: str = "V031") -> dict[str, Any] | None:
+        return retention.cohort_detail(entry_id, version)
+
+    def rerun(self, cohort_code: str) -> dict[str, Any] | None:
+        return retention.retention_series_from_history(cohort_code)

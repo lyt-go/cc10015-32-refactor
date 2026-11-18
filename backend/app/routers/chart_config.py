@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import csv
 import io
-import random
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+from app.services.analysis_board import summary_metrics
 from app.schemas import ActionPayload, ActionResult, EntryPayload
 from app.services.chart_config import ChartConfigService
 
@@ -27,11 +27,7 @@ def csv_cell(value: Any) -> str:
 
 @router.get("/summary")
 def get_summary() -> dict[str, Any]:
-    return {"metrics": [
-        {"label": "覆盖数据源", "value": random.randint(12, 45), "trend": random.randint(-12, 25)},
-        {"label": "最新指标值", "value": round(random.uniform(0.72, 0.99), 3), "trend": random.randint(-8, 15)},
-        {"label": "异常记录", "value": random.randint(0, 8), "trend": -random.randint(1, 10)},
-    ]}
+    return {"metrics": summary_metrics()}
 
 
 @router.get("")

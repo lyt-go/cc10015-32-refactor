@@ -1,10 +1,11 @@
 """预测模型 分析看板服务：汇总指标、运行分析并生成模拟结果。"""
 from __future__ import annotations
 
-import random
 from typing import Any
 
 from app.store import store
+
+from app.services.analysis_board import AnalysisBoardService
 
 MODULE = "forecast_model"
 REQUIRED_FIELDS = ["模型编号", "预测对象", "历史窗口"]
@@ -13,33 +14,10 @@ ACTION_RULES = {"开始训练": "训练中", "确认就绪": "已就绪", "废�
 NEGATIVE_ACTIONS = []
 
 
-class ForecastModelService:
-    def list_results(self) -> list[dict[str, Any]]:
-        rows = store.rows(MODULE)
-        results: list[dict] = []
-        for row in rows:
-            d = dict(row)
-            d["指标值"] = round(random.uniform(0.65, 0.98), 3)
-            d["对比基准"] = round(random.uniform(0.60, 0.92), 3)
-            d["差异"] = round(d["指标值"] - d["对比基准"], 3)
-            results.append(d)
-        return results
+class ForecastModelService(AnalysisBoardService):
+    """列表汇总、参数运行与详情读取统一走 AnalysisBoardService，避免重复口径。"""
 
-    def run_analysis(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        count = int(params.get("样本范围", params.get("并行数量", "6")))
-        results: list[dict] = []
-        for i in range(count):
-            results.append({
-                "id": i + 1,
-                "分组": f"分组{(i%3)+1}",
-                "指标值": round(random.uniform(0.62, 1.02), 3),
-                "对比基准": round(random.uniform(0.58, 0.95), 3),
-                "差异": round(random.uniform(-0.2, 0.3), 3),
-            })
-        return results
-
-    def get_entry(self, entry_id: int) -> dict[str, Any] | None:
-        return store.find(MODULE, entry_id)
+    MODULE = MODULE
 
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
         missing = [f for f in REQUIRED_FIELDS if not str(values.get(f) or "").strip()]

@@ -24,5 +24,6 @@ from app.routers import data_freshness as router_data_freshness
 from app.routers import metric_alias as router_metric_alias
 from app.routers import expr_factor as router_expr_factor
 from app.routers import evaluate_board as router_evaluate_board
+from app.routers import retention_matrix as router_retention_matrix
 
-ROUTERS = [router_experiment, router_sample_group, router_metric_def, router_ab_result, router_segment_compare, router_drill_down, router_data_filter, router_attr_analysis, router_anomaly_detect, router_forecast_model, router_data_export, router_cohort_track, router_chart_config, router_insight_report, router_data_freshness, router_metric_alias, router_expr_factor, router_evaluate_board]
+ROUTERS = [router_experiment, router_sample_group, router_metric_def, router_ab_result, router_segment_compare, router_drill_down, router_data_filter, router_attr_analysis, router_anomaly_detect, router_forecast_model, router_data_export, router_cohort_track, router_chart_config, router_insight_report, router_data_freshness, router_metric_alias, router_expr_factor, router_evaluate_board, router_retention_matrix]

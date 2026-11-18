@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import csv
 import io
-import random
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+from app.services.analysis_board import summary_metrics
 from app.schemas import ActionPayload, ActionResult, EntryPayload
 from app.services.insight_report import InsightReportService
 
@@ -27,11 +27,7 @@ def csv_cell(value: Any) -> str:
 
 @router.get("/summary")
 def get_summary() -> dict[str, Any]:
-    return {"metrics": [
-        {"label": "覆盖数据源", "value": random.randint(12, 45), "trend": random.randint(-12, 25)},
-        {"label": "最新指标值", "value": round(random.uniform(0.72, 0.99), 3), "trend": random.randint(-8, 15)},
-        {"label": "异常记录", "value": random.randint(0, 8), "trend": -random.randint(1, 10)},
-    ]}
+    return {"metrics": summary_metrics()}
 
 
 @router.get("")
@@ -59,6 +55,18 @@ def export_entries() -> StreamingResponse:
     buf.seek(0)
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv; charset=utf-8",
                              headers={"Content-Disposition": "attachment; filename=insight_report.csv"})
+
+
+@router.get("/conclusions")
+def get_conclusions() -> dict[str, Any]:
+    """洞察结论数据表：关键发现与留存矩阵读取结果一起返回。"""
+    return {"items": service.conclusions()}
+
+
+@router.get("/verify")
+def verify_samples() -> dict[str, Any]:
+    """跨模块联动（V032）：用原报告样例核对关键发现。"""
+    return service.verify()
 
 
 @router.get("/{entry_id}")

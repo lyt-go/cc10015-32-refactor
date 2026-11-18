@@ -653,3 +653,11 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '消费范围': '评估看板样例3',
   '看板版本': '评估看板样例3'}]
 }
+
+# 同期群定义、留存矩阵、V032 留档与洞察结论统一由留存口径模块生成，
+# 替换上面的占位样例：同一份输入只保留一处出处，避免两边各自维护周期与指标口径。
+from app.retention_seed import build_retention_tables, cohort_rows, insight_rows  # noqa: E402
+
+SEED_ROWS["cohort_track"] = cohort_rows()
+SEED_ROWS["insight_report"] = insight_rows()
+SEED_ROWS.update(build_retention_tables())
